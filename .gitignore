@@ -1,0 +1,8 @@
+.vscode/
+debug/*.d
+debug/*.o
+debug/chip8
+release/*.d
+release/*.o
+release/chip8
+
