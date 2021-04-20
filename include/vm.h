@@ -15,8 +15,36 @@
 constexpr static int MEM_SIZE =   0x1000;
 constexpr static int STACK_SIZE = 0x0010;
 
-struct Chip8VM {
+class Chip8VM {
+public:
     explicit Chip8VM();
+
+    void  cycle();
+
+private:
+    struct OneArg {
+        uint16_t NNN_:12;
+    };
+
+    struct TwoArgs {
+        uint16_t NN_:8;
+        uint16_t X_:4;
+    };
+
+    struct ThreeArgs {
+        uint16_t N_:4;
+        uint16_t Y_:4;
+        uint16_t X_:4;
+    };
+
+    struct Instruction {
+        uint16_t opcode_:4;
+        union {
+            OneArg one;
+            TwoArgs two;
+            ThreeArgs three;
+        } args_;
+    };
 
     using Registers = std::array<uint8_t, 16>;
     using Memory = std::array<uint8_t, MEM_SIZE>;
