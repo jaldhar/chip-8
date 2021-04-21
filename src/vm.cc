@@ -32,7 +32,8 @@ void Chip8VM::cycle() {
                     break;
                 case 0xEE:
                     // 00EE -   Return from a subroutine
-                    // TODO
+                    SP_--;
+                    PC_ = stack_[SP_];
                     break;
                 default:
                     break;
@@ -40,28 +41,37 @@ void Chip8VM::cycle() {
             break;
         case 0x1:
             // 1NNN -   Jump to address NNN
-            // TODO
+            PC_ = instruction.args_.one.NNN_;
             break;
         case 0x2:
             // 2NNN -   Execute subroutine starting at address NNN
-            // TODO
+            stack_[SP_] = PC_;
+            SP_++;
+            PC_ = instruction.args_.one.NNN_;
             break;
         case 0x3:
             // 3XNN -   Skip the following instruction if the value of register
             //          VX equals NN
-            // TODO
+            if (V_[instruction.args_.two.X_] == instruction.args_.two.NN_) {
+                PC_ += 2;
+            }
             break;
         case 0x4:
             // 4XNN -   Skip the following instruction if the value of register
             //          VX is not equal to NN
-            // TODO
+            if (V_[instruction.args_.two.X_] != instruction.args_.two.NN_) {
+                PC_ += 2;
+            }
             break;
         case 0x5:
             switch(instruction.args_.three.N_) {
                 case 0x0:
                     // 5XY0 -   Skip the following instruction if the value of
                     //          register VX is equal to the value of register VY
-                    // TODO
+                    if (V_[instruction.args_.three.X_] ==
+                    V_[instruction.args_.three.Y_]) {
+                        PC_ += 2;
+                    }
                     break;
                 default:
                     break;
@@ -69,62 +79,82 @@ void Chip8VM::cycle() {
             break;
         case 0x6:
             // 6XNN -   Store number NN in register VX
-            // TODO
+            V_[instruction.args_.two.X_] = instruction.args_.two.NN_;
             break;
         case 0x7:
             // 7XNN -   Add the value NN to register VX
             //          (Carry flag is not changed)
-            // TODO
+            V_[instruction.args_.two.X_] += instruction.args_.two.NN_;
             break;
         case 0x8:
             switch(instruction.args_.three.N_) {
                 case 0x0:
                     // 8XY0 -   Store the value of register VY in register VX
-                    // TODO
+                    V_[instruction.args_.three.X_] =
+                        V_[instruction.args_.three.Y_];
                     break;
                 case 0x1:
                     // 8XY1 -   Set VX to VX OR VY
-                    // TODO
+                    V_[instruction.args_.three.X_] |=
+                        V_[instruction.args_.three.Y_];
                     break;
                 case 0x2:
                     // 8XY2 -   Set VX to VX AND VY
-                    // TODO
+                    V_[instruction.args_.three.X_] &=
+                        V_[instruction.args_.three.Y_];
                     break;
                 case 0x3:
                     // 8XY3 -   Set VX to VX XOR VY
-                    // TODO
+                    V_[instruction.args_.three.X_] ^=
+                        V_[instruction.args_.three.Y_];
                     break;
                 case 0x4:
                     // 8XY4 -   Add the value of register VY to register VX
                     //          Set VF to 01 if a carry occurs
                     //          Set VF to 00 if a carry does not occur
-                    // TODO
+                    {
+                        uint16_t result = V_[instruction.args_.three.X_] + 
+                            V_[instruction.args_.three.Y_];
+                        V_[0xF] = (result > 255) ? 1 : 0;
+                        V_[instruction.args_.three.X_] = (result & 0x00FF);
+                    }
                     break;
                 case 0x5:
                     // 8XY5 - Subtract the value of register VY from register VX
                     //        Set VF to 00 if a borrow occurs
                     //        Set VF to 01 if a borrow does not occur
-                    // TODO
+                    V_[0xF] = (V_[instruction.args_.three.X_] >
+                        V_[instruction.args_.three.Y_]) ? 1 : 0;
+                    V_[instruction.args_.three.X_] -=
+                        V_[instruction.args_.three.Y_];
                     break;
                 case 0x6:
                     // 8XY6 - Store the value of register VY shifted right 1 bit
                     //        in register VX
                     //        Set register VF to the least significant bit prior
                     //        to the shift
-                    // TODO
+                    V_[0xF] = V_[instruction.args_.three.Y_] & 0x01;
+                    V_[instruction.args_.three.X_] =
+                        V_[instruction.args_.three.Y_] >> 1;
                     break;
                 case 0x7:
                     // 8XY7 -   Set register VX to the value of VY minus VX
                     //          Set VF to 00 if a borrow occurs
                     //          Set VF to 01 if a borrow does not occur
-                    // TODO
+                    V_[0xF] = (V_[instruction.args_.three.Y_] >
+                        V_[instruction.args_.three.X_]) ? 1 : 0;
+                    V_[instruction.args_.three.X_] =
+                        V_[instruction.args_.three.Y_] -
+                        V_[instruction.args_.three.X_];
                     break;
                 case 0xE:
                     // 8XYE     Store the value of register VY shifted left one
                     //          bit in register VX
                     //          Set register VF to the most significant bit
                     //          prior to the shift
-                    // TODO
+                    V_[0xF] = V_[instruction.args_.three.Y_] & 0x80;
+                    V_[instruction.args_.three.X_] =
+                        V_[instruction.args_.three.Y_] << 1;
                     break;
                 default:
                     break;
@@ -135,7 +165,10 @@ void Chip8VM::cycle() {
                 case 0x0:
                     // 9XY0 -   Skip the following instruction if the value of
                     //          register VX is not equal to value of register VY
-                    // TODO
+                    if (V_[instruction.args_.three.X_] !=
+                    V_[instruction.args_.three.Y_]) {
+                        PC_ += 2;
+                    }
                     break;
                 default:
                     break;
@@ -143,11 +176,11 @@ void Chip8VM::cycle() {
             break;
         case 0xA:
             // ANNN -   Store memory address NNN in register I
-            // TODO
+            I_ = instruction.args_.one.NNN_;
             break;
         case 0xB:
             // BNNN -   Jump to address NNN + V0
-            // TODO
+            PC_ = instruction.args_.one.NNN_ + V_[0];
             break;
         case 0xC:
             // CXNN -   Set VX to a random number with a mask of NN
@@ -211,19 +244,32 @@ void Chip8VM::cycle() {
                     // FX33 - Store the binary-coded decimal equivalent of the
                     //        value stored in register VX at addresses I, I+1,
                     //        and I+2
-                    // TODO
+                    {
+                        auto temp = V_[instruction.args_.two.X_];
+                        for (auto i = 0, power = 100; i < 3; i++, power /= 10) {
+                            memory_[I_ + i] = temp / power;
+                            temp = temp % power;
+                        }
+                        I_ += 3;
+                    }
                     break;
                 case 0x55:
                     // FX55 - Store the values of registers V0 to VX inclusive
                     //        in memory starting at address I
                     //        I is set to I + X + 1 after operation
-                    // TODO
+                    for (auto i = 0; i <= instruction.args_.two.X_; i++) {
+                        memory_[I_ + i] = V_[i];
+                    }
+                    I_ += (instruction.args_.two.X_ + 1);
                     break;
                 case 0x65:
                     // FX65 -  Fill registers V0 to VX inclusive with the values
                     //         stored in memory starting at address I
                     //         I is set to I + X + 1 after operation
-                    // TODO
+                    for (auto i = 0; i <= instruction.args_.two.X_; i++) {
+                        V_[i] = memory_[I_ + i];
+                    }
+                    I_ += (instruction.args_.two.X_ + 1);
                     break;
                 default:
                     break;
