@@ -24,13 +24,14 @@ DEPFLAGS=-MT $@ -MMD -MP -MF $*.d
 CPPFLAGS+=$(DEPFLAGS) -I$(INCDIR)
 CXXFLAGS+=-std=c++17 -Wall -Wextra -Wpedantic -Weffc++ -flto
 LDFLAGS+=-ffunction-sections -fdata-sections -Wl,-gc-sections
+LIBS=-lX11 -lGL -lpthread -lpng -lstdc++fs
 
 get_builddir = '$(findstring '$(notdir $(CURDIR))', 'debug' 'release')'
 
 .cc.o:
 
 $(PROGRAM): $(OBJECTS) | checkinbuilddir
-	$(LINK.cc) $(OUTPUT_OPTION) $^
+	$(LINK.cc) $(OUTPUT_OPTION) $^ $(LIBS)
 	$(STRIP)
 
 $(DEPFILES):

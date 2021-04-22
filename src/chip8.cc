@@ -10,9 +10,15 @@
 #include <clocale>
 #include <csignal>
 #include <cstdlib>
+#include <map>
+
+#define OLC_PGE_APPLICATION
+#include "olcPixelGameEngine.h"
+
 #include "vm.h"
 
-constexpr double TICK = 1E9 / 60.0;
+constexpr static int SCALE = 8;
+constexpr static float TICK = 1.0f / 60.0f;
 
 volatile bool endflag = false;
 
@@ -30,6 +36,92 @@ void system_end(int sig) {
     }
 }
 
+class View : public olc::PixelGameEngine
+{
+public:
+    View(Chip8VM&);
+    ~View()=default;
+
+    bool OnUserCreate() override;
+    bool OnUserUpdate(float) override;
+
+private:
+    void draw();
+    void handleInput();
+
+    using Keymap = std::map<Command, const olc::Key>;
+
+    float lag_;
+    Keymap keys_;
+
+    Chip8VM& vm_;
+};
+
+View::View(Chip8VM& vm) : lag_{0.0f}, keys_{
+        { Command::KEY_0, olc::Key::X },
+        { Command::KEY_1, olc::Key::K1 },
+        { Command::KEY_2, olc::Key::K2 },
+        { Command::KEY_3, olc::Key::K3 },
+        { Command::KEY_4, olc::Key::Q },
+        { Command::KEY_5, olc::Key::W },
+        { Command::KEY_6, olc::Key::E },
+        { Command::KEY_7, olc::Key::A },
+        { Command::KEY_8, olc::Key::S },
+        { Command::KEY_9, olc::Key::D },
+        { Command::KEY_A, olc::Key::Z },
+        { Command::KEY_B, olc::Key::C },
+        { Command::KEY_C, olc::Key::K4 },
+        { Command::KEY_D, olc::Key::R },
+        { Command::KEY_E, olc::Key::F },
+        { Command::KEY_F, olc::Key::V },
+    }, vm_{vm} {
+    sAppName = "CHIP-8";
+}
+
+bool View::OnUserCreate() {
+    return true;
+}
+
+bool View::OnUserUpdate(float elapsed) {
+    if (endflag) {
+        return false;
+    }
+
+    // fixed time step
+    lag_ += elapsed;
+    if (lag_ >= TICK) {
+        lag_ -= TICK;
+    } else {
+        return true;
+    }
+
+    handleInput();
+
+    vm_.cycle();
+
+    draw();
+
+    return true;
+}
+
+void View::draw() {
+    Clear(olc::BLACK);
+
+    for (auto row = 0; row < SCREEN_HEIGHT; row++) {
+        for (auto col = 0; col < SCREEN_WIDTH; col++) {
+            if (vm_.pixelAt(row, col)) {
+                Draw(col, row, olc::WHITE);
+            }
+        }
+    }
+}
+
+void View::handleInput() {
+    for (auto& key: keys_) {
+        vm_.input(key.first, GetKey(key.second).bHeld);
+    }
+}
+
 int main() {
     setlocale(LC_ALL, "POSIX");
 
@@ -42,22 +134,11 @@ int main() {
     sigaction(SIGTERM, &act, NULL);
 
     Chip8VM vm;
+    View view(vm);
 
-    std::chrono::steady_clock clock;
-    auto previous = clock.now();
-    auto lag = 0.0;
-
-    while (!endflag) {
-        auto current = clock.now();
-        auto elapsed = current - previous;
-        previous = current;
-        lag += elapsed.count();
-
-        while (lag >= TICK) {
-            lag -= TICK;
-            vm.cycle();
-        }
+    if (view.Construct(SCREEN_WIDTH, SCREEN_HEIGHT, SCALE, SCALE)) {
+        view.Start();
     }
 
-    return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

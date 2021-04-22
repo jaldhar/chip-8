@@ -6,15 +6,43 @@
 // "Do what thou wilt" shall be the whole of the license.
 //
 
+#include <algorithm>
 #include "vm.h"
 
 constexpr static int PROGRAM_START = 0x0200;
+constexpr static int FONT_START = 0x0050;
 
 Chip8VM::Chip8VM() : V_{}, I_{}, PC_{PROGRAM_START}, SP_{}, DT_{}, ST_{},
-memory_{}, stack_{} {
+memory_{}, stack_{}, display_{}, keys_{}, blocking_{false} {
+
+    std::array<uint8_t, 80> font {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+    std::copy(font.begin(), font.end(), &memory_[FONT_START]);
 }
 
 void Chip8VM::cycle() {
+    if (!blocking_) {
+        decode();
+    }
+}
+
+void Chip8VM::decode() {
     uint16_t fetched = (memory_[PC_] << 8) | memory_[PC_ + 1];
     Instruction instruction{
         static_cast<uint16_t>((fetched & 0xF000) >> 12),
@@ -28,7 +56,7 @@ void Chip8VM::cycle() {
             switch(instruction.args_.one.NNN_) {
                 case 0xE0:
                     // 00E0 -   Clear the screen
-                    // TODO
+                    std::fill(display_.begin(), display_.end(), 0x00);
                     break;
                 case 0xEE:
                     // 00EE -   Return from a subroutine
@@ -190,7 +218,25 @@ void Chip8VM::cycle() {
             // DXYN - Draw a sprite at position VX, VY with N bytes of sprite
             //        data starting at the address stored in I.  Set VF to 01 if
             //        any set pixels are changed to unset, and 00 otherwise
-            // TODO
+            {
+                auto originX = V_[instruction.args_.three.X_] % SCREEN_WIDTH;
+                auto originY = V_[instruction.args_.three.Y_] % SCREEN_HEIGHT;
+                auto changed = 0;
+
+                for (auto row = 0; row < instruction.args_.three.N_; row++) {
+                    auto posY = (originY + row) % SCREEN_HEIGHT;
+                    for (uint8_t bit = 0x80, i = 0; bit > 0; bit >>= 1, i++) {
+                        auto posX = (originX + i) % SCREEN_WIDTH;
+                        auto previous = display_[posY].test(posX);
+                        auto current = (memory_[I_ + row] & bit) ? true : false;
+                        display_[posY].set(posX, previous ^ current);
+                        if (previous && !current) {
+                            changed++;
+                        }
+                    }
+                }
+                V_[0xF] = (changed) ? 1 : 0;
+            }
             break;
         case 0xE:
             switch(instruction.args_.two.NN_) {
@@ -198,13 +244,17 @@ void Chip8VM::cycle() {
                     // EX9E - Skip the following instruction if the key
                     //        corresponding to the hex value currently stored
                     //        in register VX is pressed
-                    // TODO
+                    if (keys_[V_[instruction.args_.two.X_]]) {
+                        PC_ += 2;
+                    }
                     break;
                 case 0xA1:
                     // EXA1 - Skip the following instruction if the key
                     //        corresponding to the hex value currently stored
                     //        in register VX is not pressed
-                    // TODO
+                    if (!keys_[V_[instruction.args_.two.X_]]) {
+                        PC_ += 2;
+                    }
                     break;
                 default:
                     break;
@@ -220,7 +270,17 @@ void Chip8VM::cycle() {
                 case 0x0A:
                     // FX0A - Wait for a keypress and store the result in
                     //        register VX
-                    // TODO
+                    if (keys_.any()) {
+                        blocking_ = false;
+                        for (size_t i = 0; i < keys_.size(); i++) {
+                            if (keys_[i]) {
+                                V_[instruction.args_.two.X_] = i;
+                                break;
+                            }
+                        }
+                    } else {
+                        blocking_ = true;
+                    }
                     break;
                 case 0x15:
                     // FX15 -   Set the delay timer to the value of register VX
@@ -238,7 +298,7 @@ void Chip8VM::cycle() {
                     // FX29 -  Set I to the memory address of the sprite data
                     //         corresponding to the hexadecimal digit stored in
                     //         register VX
-                    // TODO
+                    I_ = FONT_START + (5 * instruction.args_.two.X_);
                     break;
                 case 0x33:
                     // FX33 - Store the binary-coded decimal equivalent of the
@@ -276,4 +336,13 @@ void Chip8VM::cycle() {
             }
             break;
     }
+
+}
+
+void Chip8VM::input(Command command, bool up) {
+    keys_[static_cast<uint8_t>(command)] = up;
+}
+
+bool Chip8VM::pixelAt(int height, int width) const {
+    return display_[height].test(width);
 }
