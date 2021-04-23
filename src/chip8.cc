@@ -10,6 +10,7 @@
 #include <clocale>
 #include <csignal>
 #include <cstdlib>
+#include <iostream>
 #include <map>
 
 #define OLC_PGE_APPLICATION
@@ -122,7 +123,7 @@ void View::handleInput() {
     }
 }
 
-int main() {
+int main(int argc, const char* argv[]) {
     setlocale(LC_ALL, "POSIX");
 
     struct sigaction act;
@@ -134,6 +135,16 @@ int main() {
     sigaction(SIGTERM, &act, NULL);
 
     Chip8VM vm;
+
+    if (argc > 1) {
+        try {
+            vm.load(argv[1]);
+        } catch (...) {
+            std::cerr << "Could not load " << argv[1] << '\n';
+            return EXIT_FAILURE;
+        }
+    }
+
     View view(vm);
 
     if (view.Construct(SCREEN_WIDTH, SCREEN_HEIGHT, SCALE, SCALE)) {

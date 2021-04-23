@@ -44,6 +44,7 @@ public:
     void  cycle();
     void  decode();
     void  input(Command, bool);
+    void  load(const char* filename);
     bool  pixelAt(int, int) const;
 
 private:

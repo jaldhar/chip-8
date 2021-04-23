@@ -7,6 +7,7 @@
 //
 
 #include <algorithm>
+#include <fstream>
 #include "vm.h"
 
 constexpr static int PROGRAM_START = 0x0200;
@@ -341,6 +342,18 @@ void Chip8VM::decode() {
 
 void Chip8VM::input(Command command, bool up) {
     keys_[static_cast<uint8_t>(command)] = up;
+}
+
+void Chip8VM::load(const char* filename) {
+    std::ifstream input(filename, std::ios::in | std::ios::binary);
+    input.exceptions(std::ifstream::failbit);
+    input.seekg(0, std::ios::end);
+    auto sz = input.tellg();
+    input.seekg(0, std::ios::beg);
+    auto contents = new char[sz];
+    input.read(contents, sz);
+    std::copy_n(contents, sz, &memory_[PROGRAM_START]);
+    delete[] contents;
 }
 
 bool Chip8VM::pixelAt(int height, int width) const {
