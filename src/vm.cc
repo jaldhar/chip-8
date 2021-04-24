@@ -14,7 +14,8 @@ constexpr static int PROGRAM_START = 0x0200;
 constexpr static int FONT_START = 0x0050;
 
 Chip8VM::Chip8VM() : V_{}, I_{}, PC_{PROGRAM_START}, SP_{}, DT_{}, ST_{},
-memory_{}, stack_{}, display_{}, keys_{}, blocking_{false} {
+memory_{}, stack_{}, display_{}, keys_{},  rnd_{std::random_device{}()},
+d_{0, 255}, blocking_{false} {
 
     std::array<uint8_t, 80> font {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -213,7 +214,7 @@ void Chip8VM::decode() {
             break;
         case 0xC:
             // CXNN -   Set VX to a random number with a mask of NN
-            // TODO
+            V_[instruction.args_.two.X_] = d_(rnd_) & instruction.args_.two.NN_;
             break;
         case 0xD:
             // DXYN - Draw a sprite at position VX, VY with N bytes of sprite

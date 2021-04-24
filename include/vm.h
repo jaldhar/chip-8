@@ -12,6 +12,7 @@
 #include <array>
 #include <bitset>
 #include <cstdint>
+#include <random>
 
 constexpr static int MEM_SIZE =   0x1000;
 constexpr static int STACK_SIZE = 0x0010;
@@ -89,6 +90,8 @@ private:
     Stack                               stack_;
     Display                             display_;
     Keys                                keys_;
+    std::minstd_rand                    rnd_;
+    std::uniform_int_distribution<uint8_t> d_;
     bool                                blocking_;
 
 };
