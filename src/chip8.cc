@@ -16,10 +16,17 @@
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
 
+#define OLC_SOUNDWAVE
+#include "olcSoundWaveEngine.h"
+
 #include "vm.h"
 
 constexpr static int SCALE = 8;
 constexpr static float TICK = 1.0f / 60.0f;
+constexpr static std::size_t SAMPLE_RATE = 44100;
+constexpr static std::size_t SAMPLES = SAMPLE_RATE / 60;
+constexpr static float FREQUENCY = 440.0f;
+constexpr static float TAU = 2.0f * 3.14159f;
 
 volatile bool endflag = false;
 
@@ -44,6 +51,7 @@ public:
     ~View()=default;
 
     bool OnUserCreate() override;
+    bool OnUserDestroy() override;
     bool OnUserUpdate(float) override;
 
 private:
@@ -56,6 +64,10 @@ private:
     Keymap keys_;
 
     Chip8VM& vm_;
+
+	olc::sound::WaveEngine soundengine_;
+	olc::sound::Wave beep_;
+
 };
 
 View::View(Chip8VM& vm) : lag_{0.0f}, keys_{
@@ -75,11 +87,26 @@ View::View(Chip8VM& vm) : lag_{0.0f}, keys_{
         { Command::KEY_D, olc::Key::R },
         { Command::KEY_E, olc::Key::F },
         { Command::KEY_F, olc::Key::V },
-    }, vm_{vm} {
+    }, vm_{vm}, soundengine_{}, beep_{} {
     sAppName = "CHIP-8";
 }
 
 bool View::OnUserCreate() {
+    soundengine_.InitialiseAudio(SAMPLE_RATE, 1);
+
+    beep_ = olc::sound::Wave(1, sizeof(uint8_t), SAMPLE_RATE, SAMPLES);
+
+    double dt = 1.0 / SAMPLE_RATE;
+    for (size_t i = 0; i < SAMPLES; i++) {
+        double t = double(i) * dt;
+        beep_.file.data()[i] = float(0.5 * sin(TAU * FREQUENCY * t));
+    }
+
+    return true;
+}
+
+bool View::OnUserDestroy() {
+
     return true;
 }
 
@@ -96,11 +123,19 @@ bool View::OnUserUpdate(float elapsed) {
         return true;
     }
 
+
     handleInput();
 
     vm_.cycle();
 
+    if (vm_.isBeeping()) {
+        soundengine_.PlayWaveform(&beep_);
+    }
+
+    vm_.handleInterrupts();
+
     draw();
+
 
     return true;
 }

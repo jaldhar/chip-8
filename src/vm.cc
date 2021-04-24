@@ -267,7 +267,7 @@ void Chip8VM::decode() {
                 case 0x07:
                     // FX07 - Store the current value of the delay timer in
                     //        register VX
-                    // TODO
+                    V_[instruction.args_.two.X_] = DT_;
                     break;
                 case 0x0A:
                     // FX0A - Wait for a keypress and store the result in
@@ -286,15 +286,19 @@ void Chip8VM::decode() {
                     break;
                 case 0x15:
                     // FX15 -   Set the delay timer to the value of register VX
-                    // TODO
+                    DT_ = V_[instruction.args_.two.X_];
                     break;
                 case 0x18:
                     // FX18 -   Set the sound timer to the value of register VX
-                    // TODO
+                    ST_ = V_[instruction.args_.two.X_];
                     break;
                 case 0x1E:
                     // FX1E -  Add the value stored in register VX to register I
-                    // TODO
+                    {
+                        uint16_t result = I_ + V_[instruction.args_.two.X_];
+                        V_[0xF] = (result > 0xFFF) ? 1 : 0;
+                        I_ = result;
+                    }
                     break;
                 case 0x29:
                     // FX29 -  Set I to the memory address of the sprite data
@@ -341,8 +345,22 @@ void Chip8VM::decode() {
 
 }
 
+void Chip8VM::handleInterrupts() {
+    if (DT_) {
+        DT_--;
+    }
+
+    if (ST_) {
+        ST_--;
+    }
+}
+
 void Chip8VM::input(Command command, bool up) {
     keys_[static_cast<uint8_t>(command)] = up;
+}
+
+bool Chip8VM::isBeeping() {
+    return ST_ != 0;
 }
 
 void Chip8VM::load(const char* filename) {

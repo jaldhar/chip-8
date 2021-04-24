@@ -44,7 +44,9 @@ public:
 
     void  cycle();
     void  decode();
+    void  handleInterrupts();
     void  input(Command, bool);
+    bool  isBeeping();
     void  load(const char* filename);
     bool  pixelAt(int, int) const;
 
