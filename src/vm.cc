@@ -316,7 +316,6 @@ void Chip8VM::decode() {
                             memory_[I_ + i] = temp / power;
                             temp = temp % power;
                         }
-                        I_ += 3;
                     }
                     break;
                 case 0x55:
