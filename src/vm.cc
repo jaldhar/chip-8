@@ -223,21 +223,34 @@ void Chip8VM::decode() {
             {
                 auto originX = V_[instruction.args_.three.X_] % SCREEN_WIDTH;
                 auto originY = V_[instruction.args_.three.Y_] % SCREEN_HEIGHT;
-                auto changed = 0;
+                V_[0xF] = 0;
 
                 for (auto row = 0; row < instruction.args_.three.N_; row++) {
-                    auto posY = (originY + row) % SCREEN_HEIGHT;
-                    for (uint8_t bit = 0x80, i = 0; bit > 0; bit >>= 1, i++) {
-                        auto posX = (originX + i) % SCREEN_WIDTH;
+                    auto posY = originY + row;
+
+                    if (posY < 0 || posY >= SCREEN_HEIGHT) {
+                        break;
+                    }
+
+                    auto data = memory_[I_ + row];
+
+                    for (uint8_t bit = 0x80,col = 0; bit > 0; bit >>= 1,col++) {
+                        auto posX = originX + col;
+
+                        if (posX < 0 || posX >= SCREEN_WIDTH) {
+                            break;
+                        }
+
                         auto previous = display_[posY].test(posX);
-                        auto current = (memory_[I_ + row] & bit) ? true : false;
+                        auto current = data & bit ? true : false;
+
                         display_[posY].set(posX, previous ^ current);
-                        if (previous && !current) {
-                            changed++;
+
+                        if  (previous && !current) {
+                            V_[0xF] = 1;
                         }
                     }
                 }
-                V_[0xF] = (changed) ? 1 : 0;
             }
             break;
         case 0xE:
