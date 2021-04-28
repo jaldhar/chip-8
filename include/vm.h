@@ -12,6 +12,7 @@
 #include <array>
 #include <bitset>
 #include <cstdint>
+#include <functional>
 #include <random>
 
 constexpr static int MEM_SIZE =   0x1000;
@@ -43,7 +44,6 @@ public:
     explicit Chip8VM();
 
     void  cycle();
-    void  decode();
     void  handleInterrupts();
     void  input(Command, bool);
     bool  isBeeping();
@@ -75,11 +75,56 @@ private:
         } args_;
     };
 
+    const Instruction   fetch();
+    void                decode(const Instruction&);
+
+    void                table0(const Instruction&);
+    void                table8(const Instruction&);
+    void                tableE(const Instruction&);
+    void                tableF(const Instruction&);
+
+    void                no_op(const Instruction&);
+    void                cls(const Instruction&);
+    void                ret(const Instruction&);
+    void                jmp(const Instruction&);
+    void                call(const Instruction&);
+    void                skip_if_eq_c(const Instruction&);
+    void                skip_if_neq_c(const Instruction&);
+    void                skip_if_eq_r(const Instruction&);
+    void                move_c(const Instruction&);
+    void                add_c(const Instruction&);
+    void                move_r(const Instruction&);
+    void                bitwise_or(const Instruction&);
+    void                bitwise_and(const Instruction&);
+    void                bitwise_xor(const Instruction&);
+    void                add_r(const Instruction&);
+    void                sub_r(const Instruction&);
+    void                shift_right(const Instruction&);
+    void                sub_n(const Instruction&);
+    void                shift_left(const Instruction&);
+    void                skip_if_neq_r(const Instruction&);
+    void                load_i(const Instruction&);
+    void                jmp_v0(const Instruction&);
+    void                rand(const Instruction&);
+    void                draw(const Instruction&);
+    void                skip_if_key(const Instruction&);
+    void                skip_if_nkey(const Instruction&);
+    void                save_delay(const Instruction&);
+    void                wait_key(const Instruction&);
+    void                load_delay(const Instruction&);
+    void                load_sound(const Instruction&);
+    void                add_i(const Instruction&);
+    void                font(const Instruction&);
+    void                bcd(const Instruction&);
+    void                save_reg(const Instruction&);
+    void                load_reg(const Instruction&);
+
     using Registers = std::array<uint8_t, 16>;
     using Memory = std::array<uint8_t, MEM_SIZE>;
     using Stack = std::array<uint16_t, STACK_SIZE>;
     using Display = std::array<std::bitset<SCREEN_WIDTH>, SCREEN_HEIGHT>;
     using Keys = std::bitset<16>;
+    using Opcode = std::function<void(Chip8VM*, const Instruction&)>;
 
     Registers                           V_;     // general-purpose registers
     uint16_t                            I_;     // memory address register
@@ -96,6 +141,11 @@ private:
     std::uniform_int_distribution<uint8_t> d_;
     bool                                blocking_;
 
+    std::array<Opcode, 16>              optable_;
+    std::array<Opcode, 16>              optable0_;
+    std::array<Opcode, 16>              optable8_;
+    std::array<Opcode, 16>              optableE_;
+    std::array<Opcode, 256>             optableF_;
 };
 
 #endif
