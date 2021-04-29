@@ -83,6 +83,8 @@ optableF_{} {
     optableF_[0x33] = &Chip8VM::bcd;
     optableF_[0x55] = &Chip8VM::save_reg;
     optableF_[0x65] = &Chip8VM::load_reg;
+
+    cls(Instruction{});
 }
 
 void Chip8VM::cycle() {
@@ -312,15 +314,15 @@ void Chip8VM::rand(const Instruction& instruction) {
 //        data starting at the address stored in I.  Set VF to 01 if
 //        any set pixels are changed to unset, and 00 otherwise
 void Chip8VM::draw(const Instruction& instruction) {
-    auto originX = V_[instruction.args_.three.X_] % SCREEN_WIDTH;
-    auto originY = V_[instruction.args_.three.Y_] % SCREEN_HEIGHT;
+    auto originX = V_[instruction.args_.three.X_] & (SCREEN_WIDTH - 1);
+    auto originY = V_[instruction.args_.three.Y_] & (SCREEN_HEIGHT - 1);
     V_[0xF] = 0;
 
     for (auto row = 0; row < instruction.args_.three.N_; row++) {
         auto posY = originY + row;
 
         if (posY < 0 || posY >= SCREEN_HEIGHT) {
-            break;
+            continue;
         }
 
         auto data = memory_[I_ + row];
@@ -329,7 +331,7 @@ void Chip8VM::draw(const Instruction& instruction) {
             auto posX = originX + col;
 
             if (posX < 0 || posX >= SCREEN_WIDTH) {
-                break;
+                continue;
             }
 
             auto previous = display_[posY].test(posX);

@@ -141,13 +141,9 @@ bool View::OnUserUpdate(float elapsed) {
 }
 
 void View::draw() {
-    Clear(olc::BLACK);
-
     for (auto row = 0; row < SCREEN_HEIGHT; row++) {
         for (auto col = 0; col < SCREEN_WIDTH; col++) {
-            if (vm_.pixelAt(row, col)) {
-                Draw(col, row, olc::WHITE);
-            }
+            Draw(col, row, vm_.pixelAt(row, col) ? olc::WHITE : olc::BLACK);
         }
     }
 }
