@@ -138,7 +138,7 @@ private:
     Display                             display_;
     Keys                                keys_;
     std::minstd_rand                    rnd_;
-    std::uniform_int_distribution<uint8_t> d_;
+    std::uniform_int_distribution<unsigned short> d_;
     bool                                blocking_;
 
     std::array<Opcode, 16>              optable_;
