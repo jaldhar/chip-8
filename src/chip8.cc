@@ -36,7 +36,10 @@ void system_end(int sig) {
         case SIGTERM:
             endflag = true;
             break;
+        case SIGABRT:
+#ifndef _WIN32
         case SIGHUP:
+#endif
             exit(EXIT_FAILURE);
             break;
         default:
@@ -157,13 +160,20 @@ void View::handleInput() {
 int main(int argc, const char* argv[]) {
     setlocale(LC_ALL, "POSIX");
 
+#ifndef _WIN32
     struct sigaction act;
     act.sa_handler = system_end;
     sigemptyset (&act.sa_mask);
     act.sa_flags = 0;
+    sigaction(SIGABRT, &act, NULL);
     sigaction(SIGHUP, &act, NULL);
     sigaction(SIGINT, &act, NULL);
     sigaction(SIGTERM, &act, NULL);
+#else
+    signal(SIGABRT, system_end);
+    signal(SIGINT, system_end);
+    signal(SIGTERM, system_end);
+#endif
 
     Chip8VM vm;
 
