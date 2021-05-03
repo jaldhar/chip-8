@@ -225,38 +225,45 @@ void Chip8VM::move_r(const Instruction& instruction) {
 }
 
 // 8XY1 -   Set VX to VX OR VY
+//          VF is set to 0
 void Chip8VM::bitwise_or(const Instruction& instruction) {
     V_[instruction.args_.three.X_] |= V_[instruction.args_.three.Y_];
+    V_[0xF] = 0;
 }
 
 // 8XY2 -   Set VX to VX AND VY
+//          VF is set to 0
 void Chip8VM::bitwise_and(const Instruction& instruction) {
     V_[instruction.args_.three.X_] &= V_[instruction.args_.three.Y_];
+    V_[0xF] = 0;
 }
 
 // 8XY3 -   Set VX to VX XOR VY
+//          VF is set to 0
 void Chip8VM::bitwise_xor(const Instruction& instruction) {
     V_[instruction.args_.three.X_] ^= V_[instruction.args_.three.Y_];
+    V_[0xF] = 0;
 }
 
 // 8XY4 -   Add the value of register VY to register VX
 //          Set VF to 01 if a carry occurs
 //          Set VF to 00 if a carry does not occur
 void Chip8VM::add_r(const Instruction& instruction) {
-    uint16_t result = V_[instruction.args_.three.X_] +
-        V_[instruction.args_.three.Y_];
-    V_[0xF] = (result > 255) ? 1 : 0;
-    V_[instruction.args_.three.X_] = (result & 0x00FF);
+    auto carry = ((0xFF - V_[instruction.args_.three.X_]) <
+        V_[instruction.args_.three.Y_]) ? 1 : 0;
+    V_[instruction.args_.three.X_] += V_[instruction.args_.three.Y_];
+    V_[0xF] = carry;
 }
 
 // 8XY5 - Subtract the value of register VY from register VX
 //        Set VF to 00 if a borrow occurs
 //        Set VF to 01 if a borrow does not occur
 void Chip8VM::sub_r(const Instruction& instruction) {
-    V_[0xF] = (V_[instruction.args_.three.X_] >
+    auto noborrow = (V_[instruction.args_.three.X_] >=
         V_[instruction.args_.three.Y_]) ? 1 : 0;
     V_[instruction.args_.three.X_] -=
         V_[instruction.args_.three.Y_];
+    V_[0xF] = noborrow;
 }
 
 // 8XY6 - Store the value of register VY shifted right 1 bit
@@ -264,18 +271,20 @@ void Chip8VM::sub_r(const Instruction& instruction) {
 //        Set register VF to the least significant bit prior
 //        to the shift
 void Chip8VM::shift_right(const Instruction& instruction) {
-    V_[0xF] = V_[instruction.args_.three.Y_] & 0x01;
+    auto lsb = V_[instruction.args_.three.Y_] & 0x01;
     V_[instruction.args_.three.X_] = V_[instruction.args_.three.Y_] >> 1;
+    V_[0xF] = lsb;
 }
 
 // 8XY7 -   Set register VX to the value of VY minus VX
 //          Set VF to 00 if a borrow occurs
 //          Set VF to 01 if a borrow does not occur
 void Chip8VM::sub_n(const Instruction& instruction) {
-    V_[0xF] = (V_[instruction.args_.three.Y_] >
+    auto result = (V_[instruction.args_.three.Y_] >
         V_[instruction.args_.three.X_]) ? 1 : 0;
     V_[instruction.args_.three.X_] = V_[instruction.args_.three.Y_] -
         V_[instruction.args_.three.X_];
+    V_[0xF] = result;
 }
 
 // 8XYE     Store the value of register VY shifted left one
@@ -283,8 +292,9 @@ void Chip8VM::sub_n(const Instruction& instruction) {
 //          Set register VF to the most significant bit
 //          prior to the shift
 void Chip8VM::shift_left(const Instruction& instruction) {
-    V_[0xF] = V_[instruction.args_.three.Y_] & 0x80;
+    auto msb = ((V_[instruction.args_.three.Y_] & 0x80) > 0) ? 1 : 0;
     V_[instruction.args_.three.X_] = V_[instruction.args_.three.Y_] << 1;
+    V_[0xF] = msb;
 }
 
 // 9XY0 -   Skip the following instruction if the value of
