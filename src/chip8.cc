@@ -114,6 +114,8 @@ bool View::OnUserDestroy() {
 }
 
 bool View::OnUserUpdate(float elapsed) {
+    handleInput();
+
     if (endflag) {
         return false;
     }
@@ -126,9 +128,6 @@ bool View::OnUserUpdate(float elapsed) {
         return true;
     }
 
-
-    handleInput();
-
     vm_.cycle();
 
     if (vm_.isBeeping()) {
@@ -138,7 +137,6 @@ bool View::OnUserUpdate(float elapsed) {
     vm_.handleInterrupts();
 
     draw();
-
 
     return true;
 }
@@ -152,8 +150,12 @@ void View::draw() {
 }
 
 void View::handleInput() {
-    for (auto& key: keys_) {
-        vm_.input(key.first, GetKey(key.second).bHeld);
+    for (auto& key : keys_) {
+        if (GetKey(key.second).bPressed || GetKey(key.second).bHeld) {
+            vm_.input(key.first, true);
+        } else {
+            vm_.input(key.first, false);
+        }
     }
 }
 

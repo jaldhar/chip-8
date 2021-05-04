@@ -14,9 +14,9 @@ constexpr static int PROGRAM_START = 0x0200;
 constexpr static int FONT_START = 0x0050;
 
 Chip8VM::Chip8VM() : V_{}, I_{}, PC_{PROGRAM_START}, SP_{}, DT_{}, ST_{},
-memory_{}, stack_{}, display_{}, keys_{},  rnd_{std::random_device{}()},
-d_{0, 255}, blocking_{false}, optable_{}, optable0_{}, optable8_{}, optableE_{},
-optableF_{} {
+memory_{}, stack_{}, display_{}, keys_{}, rnd_{std::random_device{}()},
+d_{0, 255}, kbstate_{KBState::UNBLOCKED}, optable_{}, optable0_{}, optable8_{},
+optableE_{}, optableF_{} {
     std::array<uint8_t, 80> font {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -88,15 +88,15 @@ optableF_{} {
 }
 
 void Chip8VM::cycle() {
-    if (!blocking_) {
-        auto instruction = fetch();
-        decode(instruction);
-    }
+    auto instruction = fetch();
+    decode(instruction);
 }
 
 const Chip8VM::Instruction Chip8VM::fetch() {
     uint16_t fetched = (memory_[PC_] << 8) | memory_[PC_ + 1];
-    PC_ += 2;
+    if (kbstate_ == KBState::UNBLOCKED) {
+        PC_ += 2;
+    }
 
     return Instruction {
         static_cast<uint16_t>((fetched & 0xF000) >> 12),
@@ -310,9 +310,9 @@ void Chip8VM::load_i(const Instruction& instruction) {
     I_ = instruction.args_.one.NNN_;
 }
 
-void Chip8VM::jmp_v0(const Instruction& instruction) {
 // BNNN -   Jump to address NNN + V0
-PC_ = instruction.args_.one.NNN_ + V_[0];
+void Chip8VM::jmp_v0(const Instruction& instruction) {
+    PC_ = instruction.args_.one.NNN_ + V_[0];
 }
 
 // CXNN -   Set VX to a random number with a mask of NN
@@ -374,7 +374,6 @@ void Chip8VM::skip_if_nkey(const Instruction& instruction) {
     }
 }
 
-
 // FX07 - Store the current value of the delay timer in
 //        register VX
 void Chip8VM::save_delay(const Instruction& instruction) {
@@ -384,16 +383,27 @@ void Chip8VM::save_delay(const Instruction& instruction) {
 // FX0A - Wait for a keypress and store the result in
 //        register VX
 void Chip8VM::wait_key(const Instruction& instruction) {
-    if (keys_.any()) {
-        blocking_ = false;
+    switch (kbstate_) {
+    case KBState::UNBLOCKED:
+        PC_ -= 2;
+        kbstate_ = KBState::BLOCKED;
+        break;
+    case KBState::RELEASING:
+        if (!keys_[V_[instruction.args_.two.X_]]) {
+            PC_ += 2;
+            kbstate_ = KBState::UNBLOCKED;
+            break;
+        }
+        break;
+    case KBState::BLOCKED:
         for (size_t i = 0; i < keys_.size(); i++) {
             if (keys_[i]) {
-                V_[instruction.args_.two.X_] = i;
+                V_[instruction.args_.two.X_] = static_cast<uint8_t>(i);
+                kbstate_ = KBState::RELEASING;
                 break;
             }
         }
-    } else {
-        blocking_ = true;
+        break;
     }
 }
 

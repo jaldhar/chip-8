@@ -39,6 +39,12 @@ enum class Command : uint8_t {
     KEY_F = 0xf,
 };
 
+enum class KBState : uint8_t {
+    UNBLOCKED = 0,
+    RELEASING = 1,
+    BLOCKED   = 2
+};
+
 class Chip8VM {
 public:
     explicit Chip8VM();
@@ -139,7 +145,7 @@ private:
     Keys                                keys_;
     std::minstd_rand                    rnd_;
     std::uniform_int_distribution<unsigned short> d_;
-    bool                                blocking_;
+    KBState                             kbstate_;
 
     std::array<Opcode, 16>              optable_;
     std::array<Opcode, 16>              optable0_;
