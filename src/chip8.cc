@@ -22,7 +22,8 @@
 #include "vm.h"
 
 constexpr static int SCALE = 8;
-constexpr static float TICK = 1.0f / 60.0f;
+constexpr static float INTERRUPT_TICK = 1.0f / 60.0f;
+constexpr static float CPU_TICK = 1.0f / 240.0f;
 constexpr static std::size_t SAMPLE_RATE = 44100;
 constexpr static std::size_t SAMPLES = SAMPLE_RATE / 60;
 constexpr static float FREQUENCY = 440.0f;
@@ -63,7 +64,8 @@ private:
 
     using Keymap = std::map<Command, const olc::Key>;
 
-    float lag_;
+    float cpuLag_;
+    float interruptLag_;
     Keymap keys_;
 
     Chip8VM& vm_;
@@ -73,7 +75,7 @@ private:
 
 };
 
-View::View(Chip8VM& vm) : lag_{0.0f}, keys_{
+View::View(Chip8VM& vm) : cpuLag_{ 0.0f }, interruptLag_ { 0.0f }, keys_{
         { Command::KEY_0, olc::Key::X },
         { Command::KEY_1, olc::Key::K1 },
         { Command::KEY_2, olc::Key::K2 },
@@ -114,29 +116,30 @@ bool View::OnUserDestroy() {
 }
 
 bool View::OnUserUpdate(float elapsed) {
-    handleInput();
-
     if (endflag) {
         return false;
     }
 
     // fixed time step
-    lag_ += elapsed;
-    if (lag_ >= TICK) {
-        lag_ -= TICK;
-    } else {
-        return true;
+    cpuLag_ += elapsed;
+    interruptLag_ += elapsed;
+
+    if (cpuLag_ >= CPU_TICK) {
+        cpuLag_ -= CPU_TICK;
+
+        handleInput();
+        vm_.cycle();
+        draw();
     }
 
-    vm_.cycle();
+    if (interruptLag_ >= INTERRUPT_TICK) {
+        interruptLag_ -= INTERRUPT_TICK;
 
-    if (vm_.isBeeping()) {
-        soundengine_.PlayWaveform(&beep_);
+        if (vm_.isBeeping()) {
+            soundengine_.PlayWaveform(&beep_);
+        }
+        vm_.handleInterrupts();
     }
-
-    vm_.handleInterrupts();
-
-    draw();
 
     return true;
 }
