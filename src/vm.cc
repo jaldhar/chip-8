@@ -428,7 +428,7 @@ void Chip8VM::add_i(const Instruction& instruction) {
 //         corresponding to the hexadecimal digit stored in
 //         register VX
 void Chip8VM::font(const Instruction& instruction) {
-    I_ = FONT_START + (5 * instruction.args_.two.X_);
+    I_ = FONT_START + (5 * V_[instruction.args_.two.X_]);
 }
 
 // FX33 - Store the binary-coded decimal equivalent of the
