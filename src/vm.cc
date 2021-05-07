@@ -331,7 +331,7 @@ void Chip8VM::draw(const Instruction& instruction) {
     for (auto row = 0; row < instruction.args_.three.N_; row++) {
         auto posY = originY + row;
 
-        if (posY < 0 || posY >= SCREEN_HEIGHT) {
+        if (posY >= SCREEN_HEIGHT) {
             continue;
         }
 
@@ -340,7 +340,7 @@ void Chip8VM::draw(const Instruction& instruction) {
         for (uint8_t bit = 0x80,col = 0; bit > 0; bit >>= 1,col++) {
             auto posX = originX + col;
 
-            if (posX < 0 || posX >= SCREEN_WIDTH) {
+            if (posX >= SCREEN_WIDTH) {
                 continue;
             }
 
@@ -349,7 +349,7 @@ void Chip8VM::draw(const Instruction& instruction) {
 
             display_[posY].set(posX, previous ^ current);
 
-            if  (previous && !current) {
+            if  (previous && current) {
                 V_[0xF] = 1;
             }
         }
