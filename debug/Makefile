@@ -7,7 +7,7 @@
 #
 
 CPPFLAGS += -DDEBUG
-CXXFLAGS += -g3
+CXXFLAGS += -g3 -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment
 VPATH = ../src:../include
 
 include ../Makefile
